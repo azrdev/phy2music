@@ -42,8 +42,12 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+
     implementation(files("spotify-app-remote-release-0.8.0.aar"))
+    implementation(libs.gson)
+
     implementation(libs.volley)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
