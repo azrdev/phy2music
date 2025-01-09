@@ -10,7 +10,9 @@ import androidx.core.view.WindowInsetsCompat
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import com.android.volley.RequestQueue
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.spotify.android.appremote.api.ConnectionParams
@@ -70,6 +72,21 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.scanToPlayButton).setOnClickListener {
             doScanAndPlay()
         }
+
+        // initialize barcode scanner connection, see below
+        resultLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val content = result.data?.getStringExtra("SCAN_RESULT")
+                log_d("Scan result: $content")
+                if (! content.isNullOrEmpty()) {
+                    handleScanResult(content)
+                }
+            }
+        }
+        // initialize HTTP API client
+        requestQueue = Volley.newRequestQueue(this)
     }
 
     override fun onStart() {
@@ -122,18 +139,8 @@ class MainActivity : AppCompatActivity() {
 
     // barcode/QR-code scanning & code lookup in web APIs
 
-    private val requestQueue = Volley.newRequestQueue(this)
-    private val resultLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val content = result.data?.getStringExtra("SCAN_RESULT")
-            log_d("Scan result: $content")
-            if (! content.isNullOrEmpty()) {
-                handleScanResult(content)
-            }
-        }
-    }
+    private lateinit var requestQueue: RequestQueue
+    private lateinit var resultLauncher: ActivityResultLauncher<Intent>
 
     private fun doScanAndPlay() {
         // barcode scanning: https://github.com/markusfisch/BinaryEye#scan-intent
