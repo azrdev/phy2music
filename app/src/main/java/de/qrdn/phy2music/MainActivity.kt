@@ -49,6 +49,11 @@ class MainActivity : AppCompatActivity() {
         logView?.append(currentTimeString() + " E $msg\n")
     }
 
+    private fun log_i(msg: String) {
+        Log.i(log_tag, msg)
+        logView?.append(currentTimeString() + " I $msg\n")
+    }
+
     private fun log_d(msg: String) {
         Log.d(log_tag, msg)
         logView?.append(currentTimeString() + " D $msg\n")
@@ -157,7 +162,7 @@ class MainActivity : AppCompatActivity() {
         if (scanResult.startsWith("spotify:")) { // spotify URI
             doPlay(scanResult)
         } else if (BARCODE_REGEX_EAN.matches(scanResult)) {
-            log_e("Scanned EAN/UPC $scanResult")
+            log_i("Scanned EAN/UPC $scanResult")
             // get from EAN/UPC to spotify URI:
             // run our variants in parallel, requestQueue.stop(tag=scanResult) once one is finished
             lookupCodeAtSpotify(scanResult)
@@ -202,7 +207,7 @@ class MainActivity : AppCompatActivity() {
         // query musicbrainz for release.barcode field ...
         requestQueue.add( JsonObjectRequest(
             // without API key rate limited to 1/s
-            "https://musicbrainz.org/search?advanced=1&type=release&query=barcode%3A$scanResult",
+            "https://musicbrainz.org/ws/2/release/?fmt=json&query=barcode%3A$scanResult",
             {response ->
                 val mbResult = response.optJSONObject("releases")
                 if (mbResult != null) {
