@@ -204,53 +204,46 @@ class MainActivity : AppCompatActivity() {
         return URLEncoder.encode(value, StandardCharsets.UTF_8.name())
     }
 
+    private fun parseMusicBrainzSearchResult(mbResponse: org.json.JSONObject): Pair<String, String>? {
+        val mbResult = mbResponse.optJSONObject("releases")
+        if (mbResult == null) {
+            return null
+        }
+        for (relKey in mbResult.keys()) {
+            val mbRelease = mbResult.optJSONObject(relKey) ?: continue
+            var mbRelTitle = mbRelease.optString("title")
+            val mbRelArtist = mbRelease.optJSONObject("artist-credit")
+                ?.optJSONObject("0")  // TODO: check all artists returned
+                ?.optJSONObject("artist")
+                ?.optString("name")
+
+            // workaround for mb having the artist as title prefix, but spotify doesn't
+            // e.g. https://musicbrainz.org/release/3d0d7f46-7fac-45f7-8a30-521f98c2d709
+            if (!mbRelTitle.isNullOrEmpty() &&
+                !mbRelArtist.isNullOrEmpty() &&
+                mbRelTitle.startsWith(mbRelArtist) &&
+                (mbRelTitle.length > mbRelArtist.length)
+            ) {
+                mbRelTitle = mbRelTitle.removePrefix(mbRelArtist).trimStart()
+            }
+            return Pair(mbRelTitle, mbRelArtist?: "")
+        }
+        return null
+    }
+
     private fun lookupCodeViaMusicBrainz(scanResult: String) {
         // query musicbrainz for release.barcode field ...
         requestQueue.add( JsonObjectRequest(
             // without API key rate limited to 1/s
             "https://musicbrainz.org/ws/2/release/?fmt=json&query=barcode%3A$scanResult",
             {response ->
-                val mbResult = response.optJSONObject("releases")
-                if (mbResult != null) {
-                    log_d("Found ${mbResult.length()} musicbrainz releases for $scanResult")
-                    for (relKey in mbResult.keys() ) {
-                        val mbRelease = mbResult.optJSONObject(relKey) ?: continue
-                        var mbRelTitle = mbRelease.optString("title")
-                        val mbRelArtist = mbRelease.optJSONObject("artist-credit")?.optJSONObject("0")?.optJSONObject("artist")?.optString("name")
-
-                        // workaround for mb having the artist as title prefix, but spotify doesn't
-                        // e.g. https://musicbrainz.org/release/3d0d7f46-7fac-45f7-8a30-521f98c2d709
-                        if (!mbRelTitle.isNullOrEmpty() &&
-                            !mbRelArtist.isNullOrEmpty() &&
-                            mbRelTitle.startsWith(mbRelArtist) &&
-                            (mbRelTitle.length > mbRelArtist.length)) {
-                            mbRelTitle = mbRelTitle.removePrefix(mbRelArtist).trimStart()
-                        }
-
-                        // ... and use the releases title and artist to query spotify
-                        requestQueue.add(JsonObjectRequest(
-                            "https://api.spotify.com/v1/search?q=artist%3A${urlParamEnc(mbRelArtist)}+album%3A${urlParamEnc(mbRelTitle)}&type=album",
-                            {spResponse ->
-                                val spRespAlb = spResponse.optJSONObject("albums")
-                                log_d("Found ${spRespAlb?.optInt("total")} spotify albums from musicbrainz' release details for $scanResult")
-                                if (spRespAlb != null && spRespAlb.optInt("total") > 0) {
-                                    for (i in 0..<spRespAlb.optInt("total", 0)) {
-                                        val spAlbumURI = spRespAlb.optJSONArray("items")?.
-                                            optJSONObject(i)?.optString("uri")
-                                        if (spAlbumURI != null) {
-                                            log_d("Found spotify URI $spAlbumURI from musicbrainz details for $scanResult")
-                                            doPlay(spAlbumURI)
-                                            requestQueue.cancelAll(scanResult)
-                                            break
-                                        }
-                                    }
-                                }
-                            },
-                            {
-                                log_e("Failed spotify lookup of musicbrainz' release $mbRelTitle by $mbRelArtist: ${it.message}", it.cause)
-                            }
-                        ).setTag(scanResult))
-                    }
+                log_d("Found ${response?.optInt("count")} musicbrainz releases for $scanResult")
+                // ... and use the releases title and artist to query spotify
+                val mbRes = parseMusicBrainzSearchResult(response)
+                if (mbRes == null) {
+                    log_i("Failed to get album+artist from mb response for $scanResult: $response")
+                } else {
+                    lookupAlbumAtSpotify(mbRes.first, mbRes.second, scanResult)
                 }
             },
             {
@@ -259,5 +252,31 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun lookupAlbumAtSpotify(releaseTitle: String, artist: String, scanResult: String) {
+        log_d("Query spotify for $releaseTitle by $artist (barcode $scanResult)")
+        requestQueue.add(JsonObjectRequest(
+            "https://api.spotify.com/v1/search?q=artist%3A${urlParamEnc(artist)}+album%3A${urlParamEnc(releaseTitle)}&type=album",
+            {spResponse ->
+                val spRespAlb = spResponse.optJSONObject("albums")
+                log_d("Found ${spRespAlb?.optInt("total")} spotify albums from musicbrainz' release details for $scanResult")
+                if (spRespAlb != null && spRespAlb.optInt("total") > 0) {
+                    for (i in 0..<spRespAlb.optInt("total", 0)) {
+                        val spAlbumURI = spRespAlb.optJSONArray("items")?.
+                        optJSONObject(i)?.optString("uri")
+                        if (spAlbumURI != null) {
+                            log_d("Found spotify URI $spAlbumURI from musicbrainz details for $scanResult")
+                            doPlay(spAlbumURI)
+                            requestQueue.cancelAll(scanResult)
+                            break
+                        }
+                    }
+                }
+            },
+            {
+                log_e("Failed spotify lookup of musicbrainz' release $releaseTitle by $artist: ${it.message}", it.cause)
+            }
+        ).setTag(scanResult))
+
+    }
 
 }
