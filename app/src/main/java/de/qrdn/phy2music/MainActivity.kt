@@ -32,8 +32,8 @@ class MainActivity : AppCompatActivity() {
 
     private val log_tag = "phy2music_main"
 
-    private val clientId = "983759c0-665e-4a65-b5a5-75ef353cc668"
-    private val redirectUri = "https://phy2music.qrdn.de/spotify-callback"
+    private val clientId = "cb7b34894da64b8f99322839f25db04f"
+    private val redirectUri = "https://qrdn.de/phy2music-spotify-callback"
     private var spotifyAppRemote: SpotifyAppRemote? = null
 
     // logging
@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         logView = findViewById(R.id.logView)
-        logView?.text = currentTimeString() + " MainActivity onCreate"
+        logView?.text = currentTimeString() + " MainActivity onCreate\n"
 
         findViewById<Button>(R.id.scanToPlayButton).setOnClickListener {
             doScanAndPlay()
@@ -101,6 +101,7 @@ class MainActivity : AppCompatActivity() {
             .showAuthView(true)
             .build()
 
+        SpotifyAppRemote.setDebugMode(true)
         SpotifyAppRemote.connect(this, connectionParams, object : Connector.ConnectionListener {
             override fun onConnected(appRemote: SpotifyAppRemote) {
                 spotifyAppRemote = appRemote
