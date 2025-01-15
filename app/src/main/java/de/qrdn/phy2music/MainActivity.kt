@@ -209,16 +209,17 @@ class MainActivity : AppCompatActivity() {
         return URLEncoder.encode(value, StandardCharsets.UTF_8.name())
     }
 
-    private fun parseMusicBrainzSearchResult(mbResponse: org.json.JSONObject): Pair<String, String>? {
-        val mbResult = mbResponse.optJSONObject("releases")
-        if (mbResult == null) {
+    private fun parseMusicBrainzSearchResult(mbResponse: JSONObject): Triple<String, String, String>? {
+        val mbReleases = mbResponse.optJSONArray("releases")
+        if (mbReleases == null) {
             return null
         }
-        for (relKey in mbResult.keys()) {
-            val mbRelease = mbResult.optJSONObject(relKey) ?: continue
+        for (i in 0..<  mbReleases.length()) {
+            val mbRelease = mbReleases.getJSONObject(i) ?: continue
+            val mbReleaseId = mbRelease.optString("id")
             var mbRelTitle = mbRelease.optString("title")
-            val mbRelArtist = mbRelease.optJSONObject("artist-credit")
-                ?.optJSONObject("0")  // TODO: check all artists returned
+            val mbRelArtist = mbRelease.optJSONArray("artist-credit")
+                ?.getJSONObject(0)  // TODO: check all returned artists
                 ?.optJSONObject("artist")
                 ?.optString("name")
 
@@ -231,7 +232,7 @@ class MainActivity : AppCompatActivity() {
             ) {
                 mbRelTitle = mbRelTitle.removePrefix(mbRelArtist).trimStart()
             }
-            return Pair(mbRelTitle, mbRelArtist?: "")
+            return Triple(mbRelTitle, mbRelArtist?: "", mbReleaseId)
         }
         return null
     }
@@ -248,6 +249,7 @@ class MainActivity : AppCompatActivity() {
                 if (mbRes == null) {
                     log_i("Failed to get album+artist from mb response for $scanResult: $response")
                 } else {
+                    log_d("Found musicbrainz release ${mbRes.third} for $scanResult")
                     lookupAlbumAtSpotify(mbRes.first, mbRes.second, scanResult)
                 }
             },
