@@ -23,6 +23,7 @@
         android:layout_height="553dp"
         android:layout_marginBottom="24dp"
         android:fontFamily="monospace"
+        android:gravity="bottom"
         android:text="TextView"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

@@ -2,23 +2,22 @@ package de.qrdn.phy2music
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-
+import android.text.method.ScrollingMovementMethod
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.android.volley.RequestQueue
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.spotify.android.appremote.api.ConnectionParams
 import com.spotify.android.appremote.api.Connector
 import com.spotify.android.appremote.api.SpotifyAppRemote
-
 import com.spotify.protocol.types.Track
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -72,10 +71,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         logView = findViewById(R.id.logView)
+        logView?.movementMethod = ScrollingMovementMethod()
         logView?.text = currentTimeString() + " MainActivity onCreate\n"
 
         findViewById<Button>(R.id.scanToPlayButton).setOnClickListener {
-            doScanAndPlay()
+            // barcode scanning: https://github.com/markusfisch/BinaryEye#scan-intent
+            resultLauncher.launch(Intent("com.google.zxing.client.android.SCAN"))
         }
 
         // initialize barcode scanner connection, see below
@@ -147,11 +148,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var requestQueue: RequestQueue
     private lateinit var resultLauncher: ActivityResultLauncher<Intent>
-
-    private fun doScanAndPlay() {
-        // barcode scanning: https://github.com/markusfisch/BinaryEye#scan-intent
-        resultLauncher.launch(Intent("com.google.zxing.client.android.SCAN"))
-    }
 
     /*
      * UPC-A: 12 digits
