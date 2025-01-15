@@ -13,16 +13,23 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.android.volley.RequestQueue
+import com.android.volley.Response
+import com.android.volley.Response.Listener
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.spotify.android.appremote.api.ConnectionParams
 import com.spotify.android.appremote.api.Connector
 import com.spotify.android.appremote.api.SpotifyAppRemote
 import com.spotify.protocol.types.Track
+import org.json.JSONObject
 import java.net.URLEncoder
+import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Timer
+import kotlin.concurrent.schedule
+
 
 // https://github.com/spotify/android-sdk/blob/master/app-remote-lib/README.md
 // https://developer.spotify.com/documentation/android/tutorials/getting-started#introduction
@@ -32,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private val log_tag = "phy2music_main"
 
     private val clientId = "cb7b34894da64b8f99322839f25db04f"
+    private val clientSecret = "..."
     private val redirectUri = "https://qrdn.de/phy2music-spotify-callback"
     private var spotifyAppRemote: SpotifyAppRemote? = null
 
@@ -172,8 +180,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun lookupCodeAtSpotify(scanResult: String) {
         // probably few hits
-        requestQueue.add(JsonObjectRequest(
-            "https://api.spotify.com/v1/search?q=upc%3A$scanResult&type=album",
+        doAuthedSpotifyRequest(
+            "search?q=upc%3A$scanResult&type=album",
+            tag = scanResult,
             {spResponse ->
                 val spRespAlb = spResponse.optJSONObject("albums")
                 log_d("Found ${spRespAlb?.optInt("total")} spotify albums for upc=$scanResult")
@@ -193,7 +202,7 @@ class MainActivity : AppCompatActivity() {
             {
                 log_e("Failed spotify lookup of upc=$scanResult: ${it.message}", it.cause)
             }
-        ).setTag(scanResult))
+        )
     }
 
     private fun urlParamEnc(value: String?): String {
@@ -250,8 +259,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun lookupAlbumAtSpotify(releaseTitle: String, artist: String, scanResult: String) {
         log_d("Query spotify for $releaseTitle by $artist (barcode $scanResult)")
-        requestQueue.add(JsonObjectRequest(
-            "https://api.spotify.com/v1/search?q=artist%3A${urlParamEnc(artist)}+album%3A${urlParamEnc(releaseTitle)}&type=album",
+        doAuthedSpotifyRequest(
+            "/search?q=artist%3A${urlParamEnc(artist)}+album%3A${urlParamEnc(releaseTitle)}&type=album",
+            tag = scanResult,
             {spResponse ->
                 val spRespAlb = spResponse.optJSONObject("albums")
                 log_d("Found ${spRespAlb?.optInt("total")} spotify albums from musicbrainz' release details for $scanResult")
@@ -271,8 +281,72 @@ class MainActivity : AppCompatActivity() {
             {
                 log_e("Failed spotify lookup of musicbrainz' release $releaseTitle by $artist: ${it.message}", it.cause)
             }
-        ).setTag(scanResult))
+        )
+    }
+
+    private var spotifyAccessToken: String? = null
+    private fun doAuthedSpotifyRequest(
+        urlPath: String,
+        tag: String,
+        listener: Listener<JSONObject>,
+        errorListener: Response.ErrorListener?
+    )
+    {
+        if (spotifyAccessToken.isNullOrEmpty()) {
+            requestQueue.add(object : JsonObjectRequest(
+                Method.POST,
+                "https://accounts.spotify.com/api/token",
+                // JsonObjectRequest can only send json body, below we override getBody() to return form-urlencoded needed for spotify
+                // must pass a non-null value so it uses method=POST
+                JSONObject(),
+                {
+                    spotifyAccessToken = it.optString("access_token")
+                    log_d("Got new spotify token valid for ${it.optInt("expires_in")}: ${it.optString("access_token").subSequence(0, 12)}...")
+                    doAuthedSpotifyRequestInternal(urlPath, tag, listener, errorListener)
+
+                    // unset token when it gets invalid, so the code above will fetch a new one
+                    Timer().schedule(it.optInt("expires_in", 600) * 1000L) {
+                        log_d("Spotify access token lifetime expired, nulling")
+                        spotifyAccessToken = null
+                    }
+                },
+                {
+                    log_e("Failed to get spotify token: ${it.message}", it.cause)
+                }
+            ) {
+                override fun getHeaders(): Map<String, String> {
+                    return mapOf(Pair("Content-Type", "application/x-www-form-urlencoded"))
+                }
+
+                override fun getBody(): ByteArray {
+                    val urlEncoded = "grant_type=client_credentials&client_id=$clientId&client_secret=$clientSecret"
+                    return urlEncoded.toByteArray(Charset.forName(PROTOCOL_CHARSET))
+                }
+
+                override fun getBodyContentType(): String {
+                    return "application/x-www-form-urlencoded"
+                }
+            })
+        } else {
+            doAuthedSpotifyRequestInternal(urlPath, tag, listener, errorListener)
+        }
 
     }
 
+    private fun doAuthedSpotifyRequestInternal(urlPath: String,
+                                               tag: String,
+                                               listener: Listener<JSONObject>,
+                                               errorListener: Response.ErrorListener?) {
+        val req = object: JsonObjectRequest(
+            "https://api.spotify.com/v1/$urlPath",
+            listener,
+            errorListener
+        ) {
+            override fun getHeaders(): Map<String, String> {
+                return mapOf(Pair("Authorization", "Bearer $spotifyAccessToken"))
+            }
+        }
+        req.setTag(tag)
+        requestQueue.add(req)
+    }
 }
