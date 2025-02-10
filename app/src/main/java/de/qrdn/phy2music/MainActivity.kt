@@ -300,7 +300,7 @@ class MainActivity : AppCompatActivity() {
     private fun lookupAlbumAtSpotify(releaseTitle: String, artist: String, scanResult: String) {
         log_d("Query spotify for $releaseTitle by $artist (barcode $scanResult)")
         doAuthedSpotifyRequest(
-            "/search?q=artist%3A${urlParamEnc(artist)}+album%3A${urlParamEnc(releaseTitle)}&type=album",
+            "search?q=artist%3A${urlParamEnc(artist)}+album%3A${urlParamEnc(releaseTitle)}&type=album",
             tag = scanResult,
             {spResponse ->
                 val spRespAlb = spResponse.optJSONObject("albums")
