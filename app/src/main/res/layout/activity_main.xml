@@ -12,21 +12,28 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Scan to Play"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.531"
-        app:layout_constraintStart_toStartOf="parent"
-        tools:layout_editor_absoluteY="64dp" />
+        tools:layout_editor_absoluteX="7dp"
+        tools:layout_editor_absoluteY="29dp" />
 
     <TextView
         android:id="@+id/logView"
         android:layout_width="0dp"
         android:layout_height="553dp"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="100dp"
         android:fontFamily="monospace"
         android:gravity="bottom"
         android:text="TextView"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/playPauseButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="40dp"
+        android:text="Play/Pause"
+        app:layout_constraintStart_toEndOf="@+id/scanToPlayButton"
+        tools:layout_editor_absoluteY="29dp" />
 </androidx.constraintlayout.widget.ConstraintLayout>

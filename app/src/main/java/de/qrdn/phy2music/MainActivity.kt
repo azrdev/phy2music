@@ -91,6 +91,19 @@ class MainActivity : AppCompatActivity() {
             // barcode scanning: https://github.com/markusfisch/BinaryEye#scan-intent
             resultLauncher.launch(Intent("com.google.zxing.client.android.SCAN"))
         }
+        findViewById<Button>(R.id.playPauseButton).setOnClickListener {
+            val player = spotifyAppRemote?.playerApi
+            if (player == null)
+                log_e("Can't toggle play/pause: player null, spotifyAppRemote: $spotifyAppRemote")
+            else {
+                player.playerState?.setResultCallback {
+                    if (it.isPaused)
+                        player.resume()
+                    else
+                        player.pause()
+                }
+            }
+        }
 
         // initialize barcode scanner connection, see below
         resultLauncher = registerForActivityResult(
