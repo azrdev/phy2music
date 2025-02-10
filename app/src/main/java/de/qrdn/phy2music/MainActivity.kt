@@ -40,7 +40,7 @@ class MainActivity : AppCompatActivity() {
 
     private val clientId = "cb7b34894da64b8f99322839f25db04f"
     private val clientSecret = "..."
-    private val redirectUri = "https://qrdn.de/phy2music-spotify-callback"
+    private val redirectUri = "phy2music://spotify-auth-callback"
     private var spotifyAppRemote: SpotifyAppRemote? = null
 
     private val connectionParams = ConnectionParams.Builder(clientId)
@@ -177,7 +177,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun doPlay(spotifyURI: String) {
-        spotifyAppRemote?.playerApi?.play(spotifyURI)?.setResultCallback {
+        log_d("doPlay _${spotifyURI}_")
+        val player = spotifyAppRemote?.playerApi
+        if (player == null) {
+            log_e("Spotify failed doPlay: playerApi null. spotifyAppRemote: $spotifyAppRemote")
+            return
+        }
+        player.play(spotifyURI).setResultCallback {
             log_d("Spotify success play($spotifyURI)")
         }?.setErrorCallback {
             log_e("Spotify failed play($spotifyURI)")
