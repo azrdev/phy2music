@@ -43,6 +43,11 @@ class MainActivity : AppCompatActivity() {
     private val redirectUri = "https://qrdn.de/phy2music-spotify-callback"
     private var spotifyAppRemote: SpotifyAppRemote? = null
 
+    private val connectionParams = ConnectionParams.Builder(clientId)
+        .setRedirectUri(redirectUri)
+        .showAuthView(true)
+        .build()
+
     // logging
 
     private var logView: TextView? = null
@@ -95,45 +100,58 @@ class MainActivity : AppCompatActivity() {
                 val content = result.data?.getStringExtra("SCAN_RESULT")
                 log_d("Scan result: $content")
                 if (! content.isNullOrEmpty()) {
-                    handleScanResult(content)
+                    // NOTE: onActivityResult() is called before onRestart/onStart, which normally initialize the spotify connection
+                    // https://stackoverflow.com/a/15214232
+                    connectToSpotify(object: Connector.ConnectionListener {
+                        override fun onConnected(p0: SpotifyAppRemote?) {
+                            // ... and only trigger doPlay after connection established
+                            handleScanResult(content)
+                        }
+                        override fun onFailure(p0: Throwable?) {}
+                    })
                 }
             }
         }
         // initialize HTTP API client
         requestQueue = Volley.newRequestQueue(this)
+
+        SpotifyAppRemote.setDebugMode(true)
     }
 
     override fun onStart() {
         super.onStart()
-        val connectionParams = ConnectionParams.Builder(clientId)
-            .setRedirectUri(redirectUri)
-            .showAuthView(true)
-            .build()
+        connectToSpotify(null)
+    }
 
-        SpotifyAppRemote.setDebugMode(true)
+    private fun connectToSpotify(listener: Connector.ConnectionListener?) {
         SpotifyAppRemote.connect(this, connectionParams, object : Connector.ConnectionListener {
             override fun onConnected(appRemote: SpotifyAppRemote) {
                 spotifyAppRemote = appRemote
                 log_d("Connected to Spotify app")
-                connected()
+                spotifyAppRemote?.let { ar ->
+                    // Subscribe to PlayerState
+                    ar.playerApi.subscribeToPlayerState().setEventCallback { event ->
+                        val track: Track = event.track
+                        val state: String = if (event.isPaused) "paused" else "playing"
+                        log_d("$state track: ${track.name} by ${track.artist.name}")
+                    }
+
+                    /* TODO: get web API token from user (instead of using the static one from app developer)
+                    AuthorizationClient.openLoginActivity(
+                        this,
+                        SPOTIFY_AUTH_REQUEST_CODE, // Assign any unique integer value
+                        authRequest
+                    )
+                    */
+                }
+                listener?.onConnected(appRemote)
             }
 
             override fun onFailure(throwable: Throwable) {
                 log_e("Failed to connect to Spotify app: ${throwable.message}", throwable)
+                listener?.onFailure(throwable)
             }
         })
-    }
-
-    private fun connected() {
-        spotifyAppRemote?.let { appRemote ->
-            // Subscribe to PlayerState
-            appRemote.playerApi.subscribeToPlayerState().setEventCallback { event ->
-                val track: Track = event.track
-                val state: String = if (event.isPaused) "paused" else "playing"
-                log_d("$state track: ${track.name} by ${track.artist.name}")
-            }
-        }
-
     }
 
     override fun onStop() {
@@ -142,6 +160,7 @@ class MainActivity : AppCompatActivity() {
         spotifyAppRemote?.let {
             SpotifyAppRemote.disconnect(it)
         }
+        spotifyAppRemote = null  // old object will error on play() without telling why
     }
 
     private fun doPlay(spotifyURI: String) {
