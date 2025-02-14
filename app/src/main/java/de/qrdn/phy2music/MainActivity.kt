@@ -203,7 +203,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleScanResult(scanResult: String) {
         if (scanResult.startsWith("spotify:")) { // spotify URI
-            doPlay(scanResult)
+            doPlay(scanResult.trim())
         } else if (BARCODE_REGEX_EAN.matches(scanResult)) {
             log_i("Scanned EAN/UPC $scanResult")
             // get from EAN/UPC to spotify URI:
