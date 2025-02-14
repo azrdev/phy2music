@@ -299,8 +299,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun lookupAlbumAtSpotify(releaseTitle: String, artist: String, scanResult: String) {
         log_d("Query spotify for $releaseTitle by $artist (barcode $scanResult)")
+        val queryString = urlParamEnc("artist:\"$artist\" album:\"$releaseTitle\"")  // TODO: escape/encode quote " in album/artist. %2522 apparently doesn't work with the API
         doAuthedSpotifyRequest(
-            "search?q=artist%3A${urlParamEnc(artist)}+album%3A${urlParamEnc(releaseTitle)}&type=album",
+            "search?type=album&q=$queryString",
             tag = scanResult,
             {spResponse ->
                 val spRespAlb = spResponse.optJSONObject("albums")
