@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.text.method.ScrollingMovementMethod
 import android.util.Log
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
@@ -73,6 +74,8 @@ class MainActivity : AppCompatActivity() {
 
     // GUI, spotify
 
+    lateinit var playPauseButton: ImageButton
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -91,7 +94,8 @@ class MainActivity : AppCompatActivity() {
             // barcode scanning: https://github.com/markusfisch/BinaryEye#scan-intent
             resultLauncher.launch(Intent("com.google.zxing.client.android.SCAN"))
         }
-        findViewById<Button>(R.id.playPauseButton).setOnClickListener {
+        playPauseButton = findViewById(R.id.playPauseButton)
+        playPauseButton.setOnClickListener {
             val player = spotifyAppRemote?.playerApi
             if (player == null)
                 log_e("Can't toggle play/pause: player null, spotifyAppRemote: $spotifyAppRemote")
@@ -103,6 +107,12 @@ class MainActivity : AppCompatActivity() {
                         player.pause()
                 }
             }
+        }
+        findViewById<ImageButton>(R.id.previousButton).setOnClickListener {
+            spotifyAppRemote?.playerApi?.skipPrevious()
+        }
+        findViewById<ImageButton>(R.id.nextButton).setOnClickListener {
+            spotifyAppRemote?.playerApi?.skipNext()
         }
 
         // initialize barcode scanner connection, see below
@@ -141,12 +151,15 @@ class MainActivity : AppCompatActivity() {
             override fun onConnected(appRemote: SpotifyAppRemote) {
                 spotifyAppRemote = appRemote
                 log_d("Connected to Spotify app")
+                setPlayPauseButtonImage(true)
                 spotifyAppRemote?.let { ar ->
                     // Subscribe to PlayerState
                     ar.playerApi.subscribeToPlayerState().setEventCallback { event ->
                         val track: Track = event.track
                         val state: String = if (event.isPaused) "paused" else "playing"
                         log_d("$state track: ${track.name} by ${track.artist.name}")
+
+                        setPlayPauseButtonImage(event.isPaused)
                     }
 
                     /* TODO: get web API token from user (instead of using the static one from app developer)
@@ -165,6 +178,15 @@ class MainActivity : AppCompatActivity() {
                 listener?.onFailure(throwable)
             }
         })
+    }
+
+    private fun setPlayPauseButtonImage(isPaused: Boolean) {
+        if (isPaused) {
+            playPauseButton.setImageResource(android.R.drawable.ic_media_play)
+        } else {
+            playPauseButton.setImageResource(android.R.drawable.ic_media_pause)
+        }
+        playPauseButton.invalidate()
     }
 
     override fun onStop() {
