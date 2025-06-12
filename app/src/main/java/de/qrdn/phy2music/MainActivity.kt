@@ -2,9 +2,11 @@ package de.qrdn.phy2music
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.text.method.ScrollingMovementMethod
 import android.util.Log
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.TextView
@@ -82,6 +84,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         // initialize GUI
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+        } else {
+            this.window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+        }
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -92,7 +99,8 @@ class MainActivity : AppCompatActivity() {
 
         logView = findViewById(R.id.logView)
         logView?.movementMethod = ScrollingMovementMethod()
-        logView?.text = currentTimeString() + " MainActivity onCreate\n"
+        logView?.text = ""
+        log_i("MainActivity onCreate")
 
         findViewById<Button>(R.id.scanToPlayButton).setOnClickListener {
             doScan()
