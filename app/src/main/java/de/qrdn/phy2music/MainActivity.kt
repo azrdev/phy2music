@@ -1,5 +1,6 @@
 package de.qrdn.phy2music
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.text.method.ScrollingMovementMethod
@@ -16,6 +17,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.android.volley.RequestQueue
 import com.android.volley.Response
 import com.android.volley.Response.Listener
+import com.android.volley.VolleyLog
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.spotify.android.appremote.api.ConnectionParams
@@ -78,6 +80,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // initialize GUI
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -91,8 +95,7 @@ class MainActivity : AppCompatActivity() {
         logView?.text = currentTimeString() + " MainActivity onCreate\n"
 
         findViewById<Button>(R.id.scanToPlayButton).setOnClickListener {
-            // barcode scanning: https://github.com/markusfisch/BinaryEye#scan-intent
-            resultLauncher.launch(Intent("com.google.zxing.client.android.SCAN"))
+            doScan()
         }
         playPauseButton = findViewById(R.id.playPauseButton)
         playPauseButton.setOnClickListener {
@@ -139,6 +142,17 @@ class MainActivity : AppCompatActivity() {
         requestQueue = Volley.newRequestQueue(this)
 
         SpotifyAppRemote.setDebugMode(true)
+
+        // detect if we're called from the notification. see <https://stackoverflow.com/a/4186097>
+        log_d("Launched MainActivity with intent $intent")
+        if (intent.getStringExtra("caller") == "tap_notification_scan") {
+            doScan()
+        }
+        // start permanent notification, in case the MainActivity is first
+        this.startService(
+            Intent(this, StartupReceiver::class.java)
+                .putExtra("caller", "MainActivityStarted")
+        )
     }
 
     override fun onStart() {
@@ -216,6 +230,15 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var requestQueue: RequestQueue
     private lateinit var resultLauncher: ActivityResultLauncher<Intent>
+
+    private fun doScan() {
+        try {
+            // barcode scanning: https://github.com/markusfisch/BinaryEye#scan-intent
+            resultLauncher.launch(Intent("com.google.zxing.client.android.SCAN"))
+        } catch (e: ActivityNotFoundException) {
+            log_e("Cannot launch barcode scanner: $e")
+        }
+    }
 
     /*
      * UPC-A: 12 digits
