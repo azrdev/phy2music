@@ -158,7 +158,7 @@ class MainActivity : AppCompatActivity() {
         }
         // start permanent notification, in case the MainActivity is first
         this.startService(
-            Intent(this, StartupReceiver::class.java)
+            Intent(this, NotificationService::class.java)
                 .putExtra("caller", "MainActivityStarted")
         )
     }

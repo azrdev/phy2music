@@ -94,6 +94,7 @@ class NotificationService : IntentService("phy2musicNotificationService") {
          */
 
         val n: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentTitle("Scan \uD83D\uDCF7 Code to Play Music \uD83C\uDFB6")
             //.setContentText("Details")
             .setContentIntent(pIntent)
