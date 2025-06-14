@@ -31,7 +31,7 @@ class StartupReceiver : BroadcastReceiver() {
 
 //TODO: IntentService is deprecated, use WorkManager
 class NotificationService : IntentService("phy2musicNotificationService") {
-    private val LogTag: String = "phy2musicNotificationService"
+    private val LogTag: String = "phy2music_NotificationService"
     private val CHANNEL_ID: String = "99f50b64-ba06-4b4c-a721-afeecce7729a"
 
     override fun onCreate() {
@@ -47,8 +47,8 @@ class NotificationService : IntentService("phy2musicNotificationService") {
 
     override fun onHandleIntent(intent: Intent?) {
         val intentType = intent?.extras?.getString("caller");
+        Log.d(LogTag, "received intent with caller $intentType: $intent")
         if (intentType == null) {
-            Log.d(LogTag, "received intent with null type: $intent")
             return
         }
         when (intentType) {
@@ -97,7 +97,10 @@ class NotificationService : IntentService("phy2musicNotificationService") {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentTitle("Scan \uD83D\uDCF7 Code to Play Music \uD83C\uDFB6")
             //.setContentText("Details")
-            .setContentIntent(pIntent)
+            .setContentIntent(pIntent)  // needs unlock
+            //TODO: open (MainActivity+)BarcodeScan from notification on lockscreen without unlock
+            // to that end, use RemoteViews (but needs custom layout?) as per https://stackoverflow.com/questions/33724567/how-to-perform-notification-action-click-on-lock-screen https://stackoverflow.com/questions/22789588/how-to-update-notification-with-remoteviews
+            //.setFullScreenIntent(pIntent, true)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setAutoCancel(false)
             //.addAction(action)
